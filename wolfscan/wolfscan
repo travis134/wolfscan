@@ -157,7 +157,7 @@ mods_menu() {
     done
     selected=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
     status=$?
-    log "Status: ${status}"
+    log "Status: ${status}, Selected: ${selected}"
 
     MODS=()
     for index in ${selected}; do
