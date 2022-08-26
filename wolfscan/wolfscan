@@ -172,7 +172,7 @@ mods_menu() {
 }
 
 create_wolf_file() {
-    local game_dir_name
+    local game_dirname
     local wolf_filename
     local game_md5
     local game_name
@@ -182,8 +182,8 @@ create_wolf_file() {
 
     log "Selected N mods: ${#MODS[@]}"
 
-    game_dir_name="$(dirname "${GAME}")"
-    wolf_filename="${game_dir_name##*/}"
+    game_dirname="$(dirname "${GAME}")"
+    wolf_filename="${game_dirname##*/}"
     game_md5=$(md5sum "${GAME}" | awk '{ print $1 }')
     game_name=$(
         echo "${GAMES_DB}" |
@@ -199,10 +199,10 @@ create_wolf_file() {
 
     file="${WOLFPATH}/${wolf_filename}"
 
-    if [[ "${game_dir_name}" =~ \ |\' ]]; then
-        game_dir_name="\"${game_dir_name}\""
+    if [[ "${game_dirname}" =~ \ |\' ]]; then
+        game_dirname="\"${game_dirname}\""
     fi
-    echo "PATH=${game_dir_name}" >"${file}"
+    echo "PATH=${game_dirname}" >"${file}"
 
     data=$(basename "${GAME}")
     echo "DATA=${data}" >"${file}"
