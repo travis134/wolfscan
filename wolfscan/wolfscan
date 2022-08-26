@@ -185,14 +185,11 @@ create_wolf_file() {
     game_dirname="$(dirname "${GAME}")"
     wolf_filename="${game_dirname##*/}"
     game_md5=$(md5sum "${GAME}" | awk '{ print $1 }')
-    log "MD5: ${game_md5}"
     game_name=$(
         echo "${GAMES_DB}" |
             jq -r --arg game_md5 "${game_md5}" '.[$game_md5] // empty'
     )
-    log "Name: ${game_name}"
     if [[ -n "${game_name}" ]]; then
-        echo "not null"
         wolf_filename="${game_name}"
     fi
     if ((${#MODS[@]})); then
