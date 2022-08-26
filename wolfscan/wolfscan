@@ -63,7 +63,7 @@ start() {
     done
     while IFS= read -r -d $'\0'; do
         ALL_GAMES+=("${REPLY}")
-    done < <(find "${BUILDENGINEPATH}" -mindepth 1 -type f \( "${find_names[@]}" \) -print0)
+    done < <(find "${WOLFPATH}" -mindepth 1 -type f \( "${find_names[@]}" \) -print0)
 
     log "Reading all mods"
     while IFS= read -r -d $'\0'; do
