@@ -104,6 +104,7 @@ game_menu() {
     local options
     local i
     local name
+    local ext
     local index
     local status
 
@@ -119,7 +120,9 @@ game_menu() {
     for i in "${!ALL_GAMES[@]}"; do
         name=${ALL_GAMES[${i}]#"${WOLFPATH}/"}
         name=$(dirname "${name}")
-        options+=("${i}" "${name}")
+        ext=$(basename "${GAME}")
+        ext="${data##*.}"
+        options+=("${i}" "${name} ($ext)")
     done
     index=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
     status=$?
@@ -238,7 +241,7 @@ created_wolf_file() {
 
     case ${status} in
     0) exit 1 ;;
-    *) base_wad_menu ;;
+    *) base_game_menu ;;
     esac
 }
 
