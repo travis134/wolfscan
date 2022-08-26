@@ -205,7 +205,8 @@ create_wolf_file() {
     echo "PATH=${game_dirname}" >"${file}"
 
     data=$(basename "${GAME}")
-    echo "DATA=${data}" >"${file}"
+    data="${data##*.}"
+    echo "DATA=${data}" >>"${file}"
 
     for mod in "${MODS[@]}"; do
         if [[ "${mod}" =~ \ |\' ]]; then
