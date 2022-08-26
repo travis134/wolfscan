@@ -1,0 +1,253 @@
+#!/bin/bash
+
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2022-present travis134
+
+. /etc/profile
+
+export TERM=linux
+
+#
+# Globals
+#
+TITLE="Wolfenstein 3D Game Scan"
+GAMES_DB=""
+WOLFPATH="/storage/roms/ecwolf"
+# From https://maniacsvault.net/ecwolf/wiki/Game_data
+# These aren't case-sensitive -- the engine doesn't seem to mind.
+SUPPORTED_EXT=(
+    "n3d"
+    "sod"
+    "sdm"
+    "wl6"
+    "wl1"
+    "sd2"
+    "sd3"
+)
+ALL_GAMES=()
+ALL_MODS=()
+
+GAME=""
+MODS=()
+
+log() {
+    local message
+    local ts
+
+    message=$1
+    ts=$(date +"%Y-%m-%dT%H:%M:%S%z")
+
+    echo "${ts}: ${message}" >&2
+}
+
+start() {
+    log "Started Wolfenstein 3D Game Scan"
+
+    chmod 666 /dev/tty1
+    chmod 666 /dev/uinput
+    gptokeyb -c controls.gptk &
+
+    dialog --backtitle "${TITLE}" --infobox "Initializing, please wait." 7 50 2>&1 >/dev/tty1
+
+    log "Reading Games DB"
+    GAMES_DB=$(cat games_db.json)
+
+    log "Reading all games"
+    find_names=()
+    for i in "${!SUPPORTED_EXT[@]}"; do
+        if [[ "${i}" != 0 ]]; then
+            find_names+=("-o")
+        fi
+        find_names+=("-iname")
+        find_names+=("gamemaps.${SUPPORTED_EXT[$i]}")
+    done
+    while IFS= read -r -d $'\0'; do
+        ALL_GAMES+=("${REPLY}")
+    done < <(find "${BUILDENGINEPATH}" -mindepth 1 -type f \( "${find_names[@]}" \) -print0)
+
+    log "Reading all mods"
+    while IFS= read -r -d $'\0'; do
+        ALL_MODS+=("${REPLY}")
+    done < <(find "${WOLFPATH}" -mindepth 1 -iname "*.pk3" -print0)
+
+    main_menu
+}
+
+main_menu() {
+    local cmd
+    local options
+    local index
+    local status
+
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Main Menu ] " --no-cancel --menu "D-pad to move, A for <enter>, B for <space>" "15" "50" "15")
+    options=(
+        0 "Create Wolfenstein 3D config"
+        1 "Exit"
+    )
+    index=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
+    status=$?
+    log "Status: ${status}, Desired index: ${index}"
+
+    case ${status} in
+    0)
+        case ${index} in
+        0) game_menu ;;
+        *) exit 0 ;;
+        esac
+        ;;
+    *) exit 1 ;;
+    esac
+}
+
+game_menu() {
+    local cmd
+    local options
+    local i
+    local name
+    local index
+    local status
+
+    log "Selected: Create Wolfenstein 3D config"
+
+    if ((!${#ALL_GAMES[@]})); then
+        dialog --backtitle "${TITLE}" --msgbox "No valid games found in ${WOLFPATH}" 7 50 2>&1 >/dev/tty1
+        exit 0
+    fi
+
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Games Menu ] " --cancel-label "Back" --menu "Pick a game" "15" "50" "15")
+    options=()
+    for i in "${!ALL_GAMES[@]}"; do
+        name=${ALL_GAMES[${i}]#"${WOLFPATH}/"}
+        name=$(dirname "${name}")
+        options+=("${i}" "${name}")
+    done
+    index=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
+    status=$?
+    log "Status: ${status}, Desired index: ${index}"
+
+    GAME="${ALL_GAMES[${index}]}"
+
+    case ${status} in
+    0) mods_menu ;;
+    1) main_menu ;;
+    *) exit 1 ;;
+    esac
+}
+
+mods_menu() {
+    local cmd
+    local options
+    local i
+    local name
+    local selected
+    local status
+
+    log "Selected game: ${GAME}"
+
+    if ((!${#ALL_MODS[@]})); then
+        create_wolf_file
+        return
+    fi
+
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Mods Menu ] " --cancel-label "Back" --checklist "Pick any Mods" "15" "50" "15")
+    options=()
+    for i in "${!ALL_MODS[@]}"; do
+        name=${ALL_MODS[${i}]#"${WOLFPATH}/"}
+        options+=("${i}" "${name}" "off")
+    done
+    selected=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
+    status=$?
+    log "Status: ${status}, Selected: ${selected}"
+
+    MODS=()
+    for index in ${selected}; do
+        MODS+=("${ALL_MODS[${index}]}")
+    done
+
+    case ${status} in
+    0) create_wolf_file ;;
+    1) game_menu ;;
+    *) exit 1 ;;
+    esac
+}
+
+create_wolf_file() {
+    local game_dir_name
+    local wolf_filename
+    local game_md5
+    local game_name
+    local file
+    local data
+    local mod
+
+    log "Selected N mods: ${#MODS[@]}"
+
+    game_dir_name="$(dirname "${GAME}")"
+    wolf_filename="${game_dir_name##*/}"
+    game_md5=$(md5sum "${GAME}" | awk '{ print $1 }')
+    game_name=$(
+        echo "${GAMES_DB}" |
+            jq -r --arg game_md5 "${game_md5}" '.[$game_md5] // empty'
+    )
+    if [[ -n "${game_name}" ]]; then
+        wolf_filename="${game_name}"
+    fi
+    if ((${#MODS[@]})); then
+        wolf_filename+=" (mod)"
+    fi
+    wolf_filename+=".ecwolf"
+
+    file="${WOLFPATH}/${wolf_filename}"
+
+    if [[ "${game_dir_name}" =~ \ |\' ]]; then
+        game_dir_name="\"${game_dir_name}\""
+    fi
+    echo "PATH=${game_dir_name}" >"${file}"
+
+    data=$(basename "${GAME}")
+    echo "DATA=${data}" >"${file}"
+
+    for mod in "${MODS[@]}"; do
+        if [[ "${mod}" =~ \ |\' ]]; then
+            mod="\"${mod}\""
+        fi
+        echo "MOD=${mod}" >>"${file}"
+    done
+
+    echo "-- end --" >>"${file}"
+
+    create_wolf_file "${wolf_filename}"
+}
+
+create_wolf_file() {
+    local wolf_filename
+    local cmd
+    local options
+    local status
+
+    wolf_filename=$1
+
+    log "Created ${wolf_filename}"
+
+    dialog --backtitle "${TITLE}" --title " [ ${wolf_filename} ] " --yes-label "Exit" --no-label "Create more" --yesno "Successfully created Wolfenstein 3D config. Do you want to exit so you can play it now?" 15 50 2>&1 >/dev/tty1
+    status=$?
+    log "Status: ${status}"
+
+    case ${status} in
+    0) exit 1 ;;
+    *) base_wad_menu ;;
+    esac
+}
+
+stop() {
+    log "Stopping Wolfenstein 3D Game Scanner"
+
+    # shellcheck disable=SC2046
+    kill -9 $(pidof gptokeyb)
+    systemctl restart emustation
+    clear >/dev/tty1
+}
+
+clear
+trap stop EXIT
+start
