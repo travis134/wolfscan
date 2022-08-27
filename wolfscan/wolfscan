@@ -54,8 +54,6 @@ game_name() {
     if [ -z "${name}" ]; then
         dirname="$(dirname "${game}")"
         path=${dirname#"${WOLFPATH}/"}
-        basename="$(basename "${game}")"
-        ext="${basename##*.}"
         name="${path##*/} (${ext})"
     fi
 
