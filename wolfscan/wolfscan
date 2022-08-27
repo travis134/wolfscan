@@ -103,6 +103,7 @@ game_menu() {
     local cmd
     local options
     local i
+    local path
     local name
     local ext
     local index
@@ -118,10 +119,10 @@ game_menu() {
     cmd=(dialog --backtitle "${TITLE}" --title " [ Games Menu ] " --cancel-label "Back" --menu "Pick a game" "15" "50" "15")
     options=()
     for i in "${!ALL_GAMES[@]}"; do
-        name=${ALL_GAMES[${i}]#"${WOLFPATH}/"}
-        name=$(dirname "${name}")
-        ext=$(basename "${GAME}")
-        ext="${data##*.}"
+        path=${ALL_GAMES[${i}]#"${WOLFPATH}/"}
+        name=$(dirname "${path}")
+        ext=$(basename "${path}")
+        ext="${ext##*.}"
         options+=("${i}" "${name} ($ext)")
     done
     index=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
@@ -241,7 +242,7 @@ created_wolf_file() {
 
     case ${status} in
     0) exit 1 ;;
-    *) base_game_menu ;;
+    *) game_menu ;;
     esac
 }
 
