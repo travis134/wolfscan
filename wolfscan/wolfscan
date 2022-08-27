@@ -13,17 +13,6 @@ export TERM=linux
 TITLE="Wolfenstein 3D Game Scan"
 GAMES_DB=""
 WOLFPATH="/storage/roms/ecwolf"
-# From https://maniacsvault.net/ecwolf/wiki/Game_data
-# These aren't case-sensitive -- the engine doesn't seem to mind.
-SUPPORTED_EXT=(
-    "n3d"
-    "sod"
-    "sdm"
-    "wl6"
-    "wl1"
-    "sd2"
-    "sd3"
-)
 ALL_GAMES=()
 ALL_GAME_NAMES=()
 ALL_MODS=()
@@ -43,19 +32,22 @@ log() {
 
 game_name() {
     local game
+    local basename
+    local ext
     local md5
     local name
     local dirname
     local path
-    local basename
-    local ext
 
     game=$1
+
+    basename="$(basename "${game}")"
+    ext="${basename##*.}"
 
     md5=$(md5sum "${game}" | awk '{ print $1 }')
     name=$(
         echo "${GAMES_DB}" |
-            jq -r --arg md5 "${md5}" '.[$md5] // empty'
+            jq -r --arg ext "${ext}" --arg md5 "${md5}" '(.[$ext][$md5] // .[$ext]["*"]) // empty'
     )
 
     if [ -z "${name}" ]; then
@@ -82,14 +74,19 @@ start() {
     GAMES_DB=$(cat games_db.json)
 
     log "Reading all games"
+    # From https://maniacsvault.net/ecwolf/wiki/Game_data
+    # These aren't case-sensitive -- the engine doesn't seem to mind.
+    supported_ext=$(echo "${GAMES_DB}" | jq -r keys[])
     find_names=()
-    for i in "${!SUPPORTED_EXT[@]}"; do
+    i=0
+    while read -r ext; do
         if [[ "${i}" != 0 ]]; then
             find_names+=("-o")
         fi
         find_names+=("-iname")
-        find_names+=("gamemaps.${SUPPORTED_EXT[$i]}")
-    done
+        find_names+=("gamemaps.${supported_ext[$i]}")
+        i+=1
+    done <<<"${supported_ext}"
     while IFS= read -r -d $'\0'; do
         ALL_GAMES+=("${REPLY}")
         ALL_GAME_NAMES+=("$(game_name "${REPLY}")")
