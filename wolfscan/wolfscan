@@ -84,7 +84,7 @@ start() {
             find_names+=("-o")
         fi
         find_names+=("-iname")
-        find_names+=("gamemaps.${supported_ext[$i]}")
+        find_names+=("gamemaps.${ext}")
         i+=1
     done <<<"${supported_ext}"
     while IFS= read -r -d $'\0'; do
