@@ -43,6 +43,7 @@ game_name() {
 
     basename="$(basename "${game}")"
     ext="${basename##*.}"
+    ext="${ext,,}"
 
     md5=$(md5sum "${game}" | awk '{ print $1 }')
     name=$(
