@@ -25,6 +25,7 @@ SUPPORTED_EXT=(
     "sd3"
 )
 ALL_GAMES=()
+ALL_GAME_NAMES=()
 ALL_MODS=()
 
 GAME=""
@@ -38,6 +39,30 @@ log() {
     ts=$(date +"%Y-%m-%dT%H:%M:%S%z")
 
     echo "${ts}: ${message}" >&2
+}
+
+game_name() {
+    local game
+    local md5
+    local name
+    local dirname
+    local path
+
+    game=$1
+
+    md5=$(md5sum "${game}" | awk '{ print $1 }')
+    name=$(
+        echo "${GAMES_DB}" |
+            jq -r --arg md5 "${md5}" '.[$md5] // empty'
+    )
+
+    if [ -z "${name}" ]; then
+        dirname="$(dirname "${game}")"
+        path=${dirname#"${WOLFPATH}/"}
+        name="${path##*/}"
+    fi
+
+    echo "${name}"
 }
 
 start() {
@@ -63,6 +88,7 @@ start() {
     done
     while IFS= read -r -d $'\0'; do
         ALL_GAMES+=("${REPLY}")
+        ALL_GAME_NAMES+=("$(game_name "${REPLY}")")
     done < <(find "${WOLFPATH}" -mindepth 1 -type f \( "${find_names[@]}" \) -print0)
 
     log "Reading all mods"
@@ -105,7 +131,6 @@ game_menu() {
     local i
     local path
     local name
-    local ext
     local index
     local status
 
@@ -119,11 +144,8 @@ game_menu() {
     cmd=(dialog --backtitle "${TITLE}" --title " [ Games Menu ] " --cancel-label "Back" --menu "Pick a game" "15" "50" "15")
     options=()
     for i in "${!ALL_GAMES[@]}"; do
-        path=${ALL_GAMES[${i}]#"${WOLFPATH}/"}
-        name=$(dirname "${path}")
-        ext=$(basename "${path}")
-        ext="${ext##*.}"
-        options+=("${i}" "${name} ($ext)")
+        name=${ALL_GAME_NAMES[${i}]}
+        options+=("${i}" "${name}")
     done
     index=$("${cmd[@]}" "${options[@]}" 2>&1 >/dev/tty1)
     status=$?
@@ -176,7 +198,7 @@ mods_menu() {
 }
 
 create_wolf_file() {
-    local game_dirname
+    local dirname
     local path
     local wolf_filename
     local game_md5
@@ -187,24 +209,15 @@ create_wolf_file() {
 
     log "Selected N mods: ${#MODS[@]}"
 
-    game_dirname="$(dirname "${GAME}")"
-    path=${game_dirname#"${WOLFPATH}/"}
-    wolf_filename="${path##*/}"
-    game_md5=$(md5sum "${GAME}" | awk '{ print $1 }')
-    game_name=$(
-        echo "${GAMES_DB}" |
-            jq -r --arg game_md5 "${game_md5}" '.[$game_md5] // empty'
-    )
-    if [[ -n "${game_name}" ]]; then
-        wolf_filename="${game_name}"
-    fi
+    wolf_filename=$(game_name "${GAME}")
     if ((${#MODS[@]})); then
         wolf_filename+=" (mod)"
     fi
     wolf_filename+=".ecwolf"
-
     file="${WOLFPATH}/${wolf_filename}"
 
+    dirname="$(dirname "${GAME}")"
+    path=${dirname#"${WOLFPATH}/"}
     if [[ "${path}" =~ \ |\' ]]; then
         path="\"${path}\""
     fi
