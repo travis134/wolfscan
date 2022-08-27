@@ -47,6 +47,8 @@ game_name() {
     local name
     local dirname
     local path
+    local basename
+    local ext
 
     game=$1
 
@@ -59,7 +61,9 @@ game_name() {
     if [ -z "${name}" ]; then
         dirname="$(dirname "${game}")"
         path=${dirname#"${WOLFPATH}/"}
-        name="${path##*/}"
+        basename="$(basename "${game}")"
+        ext="${basename##*.}"
+        name="${path##*/} (${ext})"
     fi
 
     echo "${name}"
@@ -105,7 +109,7 @@ main_menu() {
     local index
     local status
 
-    cmd=(dialog --backtitle "${TITLE}" --title " [ Main Menu ] " --no-cancel --menu "D-pad to move, A for <enter>, B for <space>" "15" "50" "15")
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Main Menu ] " --no-cancel --menu "D-pad to move, A for <enter>, B for <space>" "15" "0" "15")
     options=(
         0 "Create Wolfenstein 3D config"
         1 "Exit"
@@ -141,7 +145,7 @@ game_menu() {
         exit 0
     fi
 
-    cmd=(dialog --backtitle "${TITLE}" --title " [ Games Menu ] " --cancel-label "Back" --menu "Pick a game" "15" "50" "15")
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Games Menu ] " --cancel-label "Back" --menu "Pick a game" "15" "0" "15")
     options=()
     for i in "${!ALL_GAMES[@]}"; do
         name=${ALL_GAME_NAMES[${i}]}
@@ -175,7 +179,7 @@ mods_menu() {
         return
     fi
 
-    cmd=(dialog --backtitle "${TITLE}" --title " [ Mods Menu ] " --cancel-label "Back" --checklist "Pick any Mods" "15" "50" "15")
+    cmd=(dialog --backtitle "${TITLE}" --title " [ Mods Menu ] " --cancel-label "Back" --checklist "Pick any Mods" "15" "0" "15")
     options=()
     for i in "${!ALL_MODS[@]}"; do
         name=${ALL_MODS[${i}]#"${WOLFPATH}/"}
