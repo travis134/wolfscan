@@ -202,11 +202,9 @@ mods_menu() {
 }
 
 create_wolf_file() {
+    local wolf_filename
     local dirname
     local path
-    local wolf_filename
-    local game_md5
-    local game_name
     local file
     local data
     local mod
